@@ -22,7 +22,7 @@
 ## docker-compose.yml
 
 ```yaml
-  mrtg-exporter:
+  cradle-exporter:
     image: ghcr.io/link-u/cradle_exporter
     expose:
       - 9231
@@ -32,15 +32,11 @@
 ## Prometheus config
 
 ```yaml
-  - job_name: 'cradles'
-    metrics_path: '/probe'
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: '<cradle_exporter>:9230'
+  - job_name: 'cradlegit remote add origin git@github.com:link-u/cradle_exporter.git
+git branch -M main
+git push -u origin main
+'
+    metrics_path: '/collected'
     static_configs:
       - targets:
         - 'http://host_to_nodes:port/'
