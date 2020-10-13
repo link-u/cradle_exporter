@@ -7,15 +7,16 @@
 
 `cradle_exporter` do:
 
- - Daemonizes multiple exporters
-   - Executes with given settings.
+ - Daemonize multiple exporters
+   - Executes exporters with given args.
    - Restarts when the executed process dies.
- - Executes given scripts peridolically
+ - Executes given scripts periodically.
    - Supports cron-notations.
    - Cache the execution results.
  - Serve static files in specified directory.
 
 `cradle_exporter` exposes just only one entrypoint, `/probe`, which gathers all metrics collected from all exporters, scripts and files.
+So it would be easier to collect metrics from multiple servers.
 
 # How to use?
 
