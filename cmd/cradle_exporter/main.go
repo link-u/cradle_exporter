@@ -3,39 +3,19 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
-	"regexp"
 
+	"github.com/link-u/cradle_exporter/internal/cradle"
 	"github.com/mattn/go-isatty"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
 var (
-	probePath     = flag.String("web.probe-path", "/probe", "Path under which to expose metrics")
-	metricsPath   = flag.String("web.metric-path", "/metric", "Path under which to expose metrics")
-	listenAddress = flag.String("web.listen-address", ":9230", "Address to listen on for web interface and telemetry.")
+	configPath    = flag.String("config", "/etc/cradle_exporter/config.yml", "Config file path")
+	collectedPath = flag.String("web.collected-path", "/collected", "Path under which to expose metrics")
+	metricsPath   = flag.String("web.metric-path", "/metrics", "Path under which to expose metrics")
+	listenAddress = flag.String("web.listen-address", ":9231", "Address to listen on for web interface and telemetry.")
 )
-
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	_, _ = w.Write(
-		[]byte(fmt.Sprintf(`
-<html>
-	<head><title>MRTG Exporter</title></head>
-	<body>
-		<h1>MRTG Exporter</h1>
-		<p><a href="%s">Metrics</a></p>
-	</body>
-</html>
-`, *metricsPath)))
-}
-
-var whiteSpace = regexp.MustCompile(`\s+`)
-
-func probeHandler(w http.ResponseWriter, r *http.Request) {
-}
 
 func main() {
 	var err error
@@ -55,13 +35,24 @@ func main() {
 	undo := zap.ReplaceGlobals(log)
 	defer undo()
 	log.Info("Log System Initialized.")
+	config, err := cradle.ReadConfigFromFile(*configPath)
 
-	http.HandleFunc("/", indexHandler)
-	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc(*probePath, probeHandler)
-
-	err = http.ListenAndServe(*listenAddress, nil)
 	if err != nil {
-		log.Fatal("Faled to run web server", zap.Error(err))
+		log.Fatal("Failed to read config file", zap.Error(err))
+	}
+
+	appConfig := &cradle.AppConfig{
+		MetricPath:     *metricsPath,
+		CollectedPath:  *collectedPath,
+		HttpListenAddr: *listenAddress,
+	}
+	cr, err := cradle.New(appConfig, config)
+	if err != nil {
+		log.Fatal("Failed to create cradle", zap.Error(err))
+	}
+
+	err = cr.Run()
+	if err != nil {
+		log.Fatal("Failed to run cradle", zap.Error(err))
 	}
 }

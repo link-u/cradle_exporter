@@ -1,34 +1,45 @@
 package cradle
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 
-	"github.com/immortal/immortal"
 	"gopkg.in/yaml.v2"
 )
 
 type ExporterConfig struct {
-	Endpoint string `yaml:"endpoint,omitempty"`
+	Endpoints []string `yaml:"endpoints,omitempty"`
 }
 
 type ScriptConfig struct {
-	Path string `yaml:"path,omitempty"`
+	Path string   `yaml:"path,omitempty"`
+	Args []string `yaml:"args,omitempty"`
 }
 
-type CronConfig struct {
-	Path string `yaml:"path,omitempty"`
+type ServiceConfig struct {
+	Path      string   `yaml:"path,omitempty"`
+	Endpoints []string `yaml:"endpoints,omitempty"`
 }
 
-type StaticConfig struct {
-	Path string `yaml:"path,omitempty"`
+type CronJobConfig struct {
+	Path string   `yaml:"path,omitempty"`
+	Args []string `yaml:"args,omitempty"`
+	Spec string   `yaml:"spec,omitempty"`
+}
+
+type StaticFileConfig struct {
+	Paths []string `yaml:"paths,omitempty"`
 }
 
 type TargetConfig struct {
-	ExporterConfig   *ExporterConfig  `yaml:"exporter,omitempty"`
-	SupervisorConfig *immortal.Config `yaml:"immortal,omitempty"`
-	ScriptConfig     *ScriptConfig    `yaml:"script,omitempty"`
-	CronConfig       *CronConfig      `yaml:"cron,omitempty"`
-	StaticConfig     *StaticConfig    `yaml:"static,omitempty"`
+	ConfigFilePath string            `yaml:",omitempty"`
+	ExporterConfig *ExporterConfig   `yaml:"exporter,omitempty"`
+	ServiceConfig  *ServiceConfig    `yaml:"service,omitempty"`
+	ScriptConfig   *ScriptConfig     `yaml:"script,omitempty"`
+	CronJobConfig  *CronJobConfig    `yaml:"cron,omitempty"`
+	StaticConfig   *StaticFileConfig `yaml:"static,omitempty"`
 }
 
 type Config struct {
@@ -69,4 +80,48 @@ func ReadConfig(bytes []byte) (*Config, error) {
 		return nil, err
 	}
 	return &config, nil
+}
+
+func collectTargetConfigsFromDir(dpath string, dst map[string]*TargetConfig) error {
+	dpath = filepath.Clean(dpath)
+	info, err := os.Lstat(dpath)
+	if err != nil {
+		return err
+	}
+	if (info.Mode() & os.ModeSymlink) == os.ModeSymlink {
+		dpath, err = os.Readlink(dpath)
+		if err != nil {
+			return err
+		}
+		dpath = filepath.Clean(dpath)
+		info, err = os.Lstat(dpath)
+		if err != nil {
+			return err
+		}
+	}
+	if !info.Mode().IsDir() {
+		return fmt.Errorf("config dir is not dir: %o", info.Mode())
+	}
+	return filepath.Walk(dpath, func(fpath string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		if (info.Mode() & os.ModeSymlink) == os.ModeSymlink {
+			fpath, err = os.Readlink(fpath)
+			if err != nil {
+				return err
+			}
+			fpath = filepath.Clean(fpath)
+			info, err = os.Lstat(fpath)
+			if err != nil {
+				return err
+			}
+		}
+		config, err := ReadTargetConfigFromFile(fpath)
+		if err != nil {
+			return err
+		}
+		dst[fpath] = config
+		return nil
+	})
 }

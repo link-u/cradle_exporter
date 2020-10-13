@@ -1,0 +1,4 @@
+---
+exporter:
+  endpoints:
+    - 'http://localhost:9231/metrics'
