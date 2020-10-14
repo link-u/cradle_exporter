@@ -21,7 +21,7 @@ cd "${root_dir}"
 dpkg-deb --contents ./artifact/*.deb
 
 apt install -y ./artifact/*.deb
-apt show cradle_exporter
+apt show cradle-exporter
 
 command -v cradle_exporter
 node_exporter -h
