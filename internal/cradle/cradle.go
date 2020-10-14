@@ -86,8 +86,19 @@ func NewTarget(cfg *TargetConfig) Target {
 	}
 }
 
+type GoLetToZapLogger struct{}
+
+func (_ GoLetToZapLogger) Write(p []byte) (n int, err error) {
+	zap.L().Info("go-let", zap.String("msg", string(p)))
+	return len(p), nil
+}
+
+type Writer interface {
+}
+
 func (cradle *Cradle) Run() error {
 	p := golet.New(context.Background())
+	p.SetLogger(GoLetToZapLogger{})
 	for _, target := range cradle.Targets {
 		s := target.CreateService()
 		if s != nil {
@@ -149,7 +160,9 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 		for name, target := range cradle.Targets {
 			var buff bytes.Buffer
 			target.Scrape(r.Context(), &buff)
-			_, _ = w.Write([]byte(fmt.Sprintf("### %s\n\n", name)))
+			_, _ = io.WriteString(w, "################################################################################\n")
+			_, _ = io.WriteString(w, fmt.Sprintf("### From: %s\n", name))
+			_, _ = io.WriteString(w, "################################################################################\n\n")
 			_, _ = io.Copy(w, &buff)
 			_, _ = w.Write([]byte("\n"))
 		}
@@ -171,7 +184,7 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 			}
 			switch signal {
 			case syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT:
-				log.Info("Signal catched", zap.String("signal", signal.String()))
+				log.Info("Signal caught", zap.String("signal", signal.String()))
 				return nil
 			}
 		case <-ctx.Done():

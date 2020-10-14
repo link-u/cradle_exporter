@@ -1,0 +1,4 @@
+---
+script:
+  path: './example/scripts/42.sh'
+  args: []
