@@ -6,10 +6,10 @@ function shouldBeSingleBinary() {
   local path
   path="$(command -v "$1")"
   if ldd "${path}" 2> /dev/null; then
-    "NG: ${path} is not fully statically linked."
+    echo "NG: ${path} is not fully statically linked."
     exit 255
   else
-    "OK: ${path} is statically linked."
+    echo "OK: ${path} is statically linked."
   fi
 }
 
