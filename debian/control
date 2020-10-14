@@ -1,14 +1,14 @@
-Source: prometheus-exporter-deck
+Source: cradle_exporter
 Section: utils
 Priority: optional
 Maintainer: Ryo Hirafuji <ryo.hirafuji@link-u.co.jp>
 Build-Depends: debhelper (>= 10)
 Standards-Version: 4.1.2
-Homepage: https://github.com/link-u/dpkg_prometheus-exporter-deck
-Vcs-Git: https://github.com/link-u/dpkg_prometheus-exporter-deck.git
-Vcs-Browser: https://github.com/link-u/dpkg_prometheus-exporter-deck.git
+Homepage: https://github.com/link-u/cradle_exporter
+Vcs-Git: https://github.com/link-u/cradle_exporter.git
+Vcs-Browser: https://github.com/link-u/cradle_exporter.git
 
-Package: prometheus-exporter-deck
+Package: cradle_exporter
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: The strongest deck of prometheus exporters.
+Description: A cradle of prometheus exporters.
