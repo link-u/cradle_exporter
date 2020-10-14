@@ -20,13 +20,13 @@ func (target *CronJobTarget) CreateService() *golet.Service {
 		Code: func(ctx context.Context) error {
 			return target.update(ctx)
 		},
-		Every: target.Config.CronJobConfig.Spec,
+		Every: target.Config.CronJobConfig.Every,
 	}
 }
 
 func (target *CronJobTarget) Scrape(ctx context.Context, w io.Writer) {
 	log := zap.L()
-	if target.lastResult != nil {
+	if target.lastResult == nil {
 		err := target.update(ctx)
 		if err != nil {
 			log.Error("Err: Failed to update target (on the fly)", zap.Error(err))

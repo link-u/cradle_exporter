@@ -1,0 +1,5 @@
+---
+cron:
+  path: './example/scripts/now.sh'
+  args: []
+  every: "*/10 * * * * *" # See https://godoc.org/github.com/robfig/cron#hdr-CRON_Expression_Format

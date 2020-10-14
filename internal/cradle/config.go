@@ -24,9 +24,9 @@ type ServiceConfig struct {
 }
 
 type CronJobConfig struct {
-	Path string   `yaml:"path,omitempty"`
-	Args []string `yaml:"args,omitempty"`
-	Spec string   `yaml:"spec,omitempty"`
+	Path  string   `yaml:"path,omitempty"`
+	Args  []string `yaml:"args,omitempty"`
+	Every string   `yaml:"every,omitempty"`
 }
 
 type StaticFileConfig struct {
