@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type Target interface {
@@ -41,34 +42,48 @@ func New(appConfig *AppConfig, config *Config) (*Cradle, error) {
 	}
 	targets := make(map[string]Target)
 	for fpath, cfg := range configs {
-		switch {
-		case cfg.StaticConfig != nil:
-			targets[fpath] = &StaticFileTarget{
-				Config: cfg,
+		target := NewTarget(cfg)
+		if target == nil {
+			yamlBytes, err := yaml.Marshal(cfg)
+			if err != nil {
+				return nil, fmt.Errorf("invalid config(unknown target type): \n%v", err)
 			}
-		case cfg.CronJobConfig != nil:
-			targets[fpath] = &CronJobTarget{
-				Config: cfg,
-			}
-		case cfg.ScriptConfig != nil:
-			targets[fpath] = &ScriptTarget{
-				Config: cfg,
-			}
-		case cfg.ServiceConfig != nil:
-			targets[fpath] = &ServiceTarget{
-				Config: cfg,
-			}
-		case cfg.ExporterConfig != nil:
-			targets[fpath] = &ExporterTarget{
-				Config: cfg,
-			}
+			return nil, fmt.Errorf("invalid config(unknown target type): \n%s", string(yamlBytes))
 		}
+		targets[fpath] = target
 	}
 	cradle := &Cradle{
 		AppConfig: appConfig,
 		Targets:   targets,
 	}
 	return cradle, nil
+}
+
+func NewTarget(cfg *TargetConfig) Target {
+	switch {
+	case cfg.StaticConfig != nil:
+		return &StaticFileTarget{
+			Config: cfg,
+		}
+	case cfg.CronJobConfig != nil:
+		return &CronJobTarget{
+			Config: cfg,
+		}
+	case cfg.ScriptConfig != nil:
+		return &ScriptTarget{
+			Config: cfg,
+		}
+	case cfg.ServiceConfig != nil:
+		return &ServiceTarget{
+			Config: cfg,
+		}
+	case cfg.ExporterConfig != nil:
+		return &ExporterTarget{
+			Config: cfg,
+		}
+	default:
+		return nil
+	}
 }
 
 func (cradle *Cradle) Run() error {
