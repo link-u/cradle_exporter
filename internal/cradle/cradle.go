@@ -88,12 +88,10 @@ func NewTarget(cfg *TargetConfig) Target {
 
 type GoLetToZapLogger struct{}
 
+// Implements io.Writer
 func (_ GoLetToZapLogger) Write(p []byte) (n int, err error) {
 	zap.L().Info("go-let", zap.String("msg", string(p)))
 	return len(p), nil
-}
-
-type Writer interface {
 }
 
 func (cradle *Cradle) Run() error {
