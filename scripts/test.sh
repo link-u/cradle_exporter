@@ -9,7 +9,7 @@ function shouldBeSingleBinary() {
     echo "NG: ${path} is not fully statically linked."
     exit 255
   else
-    echo "OK: ${path} is statically linked."
+    echo "OK: ${path} is fully statically linked."
   fi
 }
 
