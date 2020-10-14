@@ -59,11 +59,73 @@ It reads all files in `/etc/cradle_exporter/conf.d` as a target config.
 
 Please see below:
 
-## Target config files
+### Service Target example config
 
-### Service Target
+`cradle_exporter` supervise `other_exporter` and proxy the endpoint of the exporter, `http://localhost:9222/metrics`, in `/collected`.
 
+```yaml
+---
+service:
+  path: '/path/to/other_exporter'
+  args:
+    - '--config=....'
+    - '--web.listen-address=:9222'
+  endpoints:
+    - 'http://localhost:9222/metrics'
+```
 
+### Exporter Target example config
+
+`cradle_exporter` just reads `http://localhost:9222/metrics` and expose it.
+
+```yaml
+---
+exporter:
+  endpoints:
+    - 'http://localhost:9222/metrics'
+```
+
+### Script Target example config
+
+`cradle_exporter` executes `/path/to/script.sh` on-the-fly and expose the execution result.
+
+```yaml
+---
+script:
+  path: '/path/to/script.sh'
+  args:
+    - 'arg1'
+    - 'arg2'
+    - '...'
+```
+
+### Cron Target example file
+
+`cradle_exporter` executes `/path/to/script.sh` periodically and expose the result.
+
+```yaml
+---
+cron:
+  path: '/path/to/script.sh'
+  args:
+    - 'arg1'
+    - 'arg2'
+    - '...'
+  # Execute every 10 second.
+  every: "*/10 * * * * *" # See https://godoc.org/github.com/robfig/cron#hdr-CRON_Expression_Format
+```
+
+### Static Target example file
+
+`cradle_exporter` reads all files in given paths recursively. Path can be both file or dir.
+
+```yaml
+---
+static:
+  paths:
+    - '/path/to/static_files_dir' # files in a dir, recursively
+    - '/path/to/static_file' # a file
+```
 
 # License
 
