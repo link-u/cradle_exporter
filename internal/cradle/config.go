@@ -51,12 +51,17 @@ func ReadTargetConfigFromFile(path string) (*TargetConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ReadTargetConfig(bytes)
+	config, err := ReadTargetConfig(bytes)
+	if config != nil {
+		config.ConfigFilePath = path
+	}
+	return config, err
 }
 
 func ReadTargetConfig(bytes []byte) (*TargetConfig, error) {
 	var err error
 	var config TargetConfig
+	config.ConfigFilePath = "<mem>"
 	err = yaml.UnmarshalStrict(bytes, &config)
 	if err != nil {
 		return nil, err

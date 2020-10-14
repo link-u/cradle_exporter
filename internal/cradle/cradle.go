@@ -18,7 +18,7 @@ import (
 
 type Target interface {
 	CreateService() *golet.Service
-	Scrape() ([]byte, error)
+	Scrape(ctx context.Context, w io.Writer)
 	ConfigFilePath() string
 }
 
@@ -147,14 +147,11 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 	r.Handle(cradle.AppConfig.MetricPath, promhttp.Handler())
 	r.HandleFunc(cradle.AppConfig.CollectedPath, func(w http.ResponseWriter, r *http.Request) {
 		for name, target := range cradle.Targets {
-			out, err := target.Scrape()
-			if err == nil {
-				_, _ = w.Write([]byte(fmt.Sprintf("### %s\n\n", name)))
-				_, _ = w.Write(out)
-				_, _ = w.Write([]byte("\n"))
-			} else {
-				log.Error("Failed to scrape target", zap.String("config-file-path", target.ConfigFilePath()), zap.Error(err))
-			}
+			var buff bytes.Buffer
+			target.Scrape(r.Context(), &buff)
+			_, _ = w.Write([]byte(fmt.Sprintf("### %s\n\n", name)))
+			_, _ = io.Copy(w, &buff)
+			_, _ = w.Write([]byte("\n"))
 		}
 	})
 	go func() {

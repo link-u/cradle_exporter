@@ -1,7 +1,8 @@
 package cradle
 
 import (
-	"bytes"
+	"context"
+	"io"
 
 	"github.com/Code-Hex/golet"
 )
@@ -14,15 +15,10 @@ func (target *EndpointTarget) CreateService() *golet.Service {
 	return nil
 }
 
-func (target *EndpointTarget) Scrape() ([]byte, error) {
-	var result bytes.Buffer
+func (target *EndpointTarget) Scrape(ctx context.Context, w io.Writer) {
 	for _, endpoint := range target.Config.ExporterConfig.Endpoints {
-		err := scrapeEndpoint(&result, target.Config.ConfigFilePath, endpoint)
-		if err != nil {
-			return nil, err
-		}
+		scrapeEndpoint(ctx, w, target.Config.ConfigFilePath, endpoint)
 	}
-	return result.Bytes(), nil
 }
 
 func (target *EndpointTarget) ConfigFilePath() string {

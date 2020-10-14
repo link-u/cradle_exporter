@@ -35,8 +35,8 @@ func main() {
 	undo := zap.ReplaceGlobals(log)
 	defer undo()
 	log.Info("Log System Initialized.")
+	log.Info("Loading config file", zap.String("path", *configPath))
 	config, err := cradle.ReadConfigFromFile(*configPath)
-
 	if err != nil {
 		log.Fatal("Failed to read config file", zap.Error(err))
 	}
