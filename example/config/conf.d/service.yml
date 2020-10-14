@@ -2,7 +2,7 @@
 service:
   path: './cradle_exporter'
   args:
-    - '--config=./example/config/config-example-service.yml'
+    - '--config=./example/config/example-service.yml'
     - '--web.listen-address=:9222'
   endpoints:
     - 'http://localhost:9222/metrics'

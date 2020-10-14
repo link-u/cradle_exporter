@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/Code-Hex/golet"
+	"github.com/kballard/go-shellquote"
 )
 
 type ServiceTarget struct {
@@ -12,8 +13,11 @@ type ServiceTarget struct {
 }
 
 func (target *ServiceTarget) CreateService() *golet.Service {
+	args := []string{target.Config.ServiceConfig.Path}
+	args = append(args, target.Config.ServiceConfig.Args...)
+	execCmd := shellquote.Join(args...)
 	return &golet.Service{
-		Exec: target.Config.ServiceConfig.Path,
+		Exec: execCmd,
 		Tag:  target.Config.ConfigFilePath,
 	}
 }
