@@ -43,6 +43,10 @@ type TargetConfig struct {
 	StaticConfig   *StaticFileConfig `yaml:"static,omitempty"`
 }
 
+type CliConfig struct {
+	StandardLog bool `yaml:"standard_log,omitempty"`
+}
+
 type WebConfig struct {
 	CollectedPath string `yaml:"collected_path,omitempty"`
 	MetricPath    string `yaml:"metric_path,omitempty"`
@@ -51,6 +55,7 @@ type WebConfig struct {
 
 type Config struct {
 	IncludeDirs []string  `yaml:"include_dirs,omitempty"`
+	Cli         CliConfig `yaml:"cli,omitempty"`
 	Web         WebConfig `yaml:"web,omitempty"`
 }
 

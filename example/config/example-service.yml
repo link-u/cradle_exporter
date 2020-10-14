@@ -1,2 +1,5 @@
 ---
 include_dirs: []
+cli:
+  standard_log: true
+web: {}

@@ -53,10 +53,12 @@ Support these modes:
 ---
 include_dirs:
   - './example/config/conf.d'
+cli:
+  standard_log: true  # can be overridden by --cli.standard-log argument
 web:
-  listen_address: ':9231' # can be overridden by --listen-address argument
-  metric_path:    '/metrics' # can be overridden by --metric-path argument
-  collected_path: '/collected' # can be overridden by --collected-path argument
+  listen_address: ':9231' # can be overridden by --web.listen-address argument
+  metric_path:    '/metrics' # can be overridden by --web.metric-path argument
+  collected_path: '/collected' # can be overridden by --web.collected-path argument
 ```
 
 It reads all files in `/etc/cradle_exporter/conf.d` as a target config.

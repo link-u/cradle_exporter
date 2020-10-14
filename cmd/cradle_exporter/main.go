@@ -16,8 +16,15 @@ func main() {
 	var err error
 	var log *zap.Logger
 	configPath := kingpin.Flag("config", "Config file path").
-		Default("/etc/cradle_exporter/config.yml").
-		String()
+		Default("/etc/cradle_exporter/config.yml").String()
+
+	standardLogOverridden := false
+	standardLog := kingpin.Flag("cli.standard-log", "Print logs in standard format, not in json").
+		Default("false").
+		Action(func(_ *kingpin.ParseContext) error {
+			standardLogOverridden = true
+			return nil
+		}).Bool()
 
 	collectedPathOverridden := false
 	collectedPath := kingpin.Flag("web.collected-path", "Path under which to expose metrics").
@@ -47,8 +54,29 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	// Check is terminal
-	if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+	config, err := cradle.ReadConfigFromFile(*configPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to read config file: %s, err=%v", *configPath, err)
+		os.Exit(-1)
+	}
+
+	if standardLogOverridden {
+		config.Cli.StandardLog = *standardLog
+	}
+
+	if collectedPathOverridden {
+		config.Web.CollectedPath = *collectedPath
+	}
+
+	if metricsPathOverridden {
+		config.Web.MetricPath = *metricsPath
+	}
+	if listenAddressOverridden {
+		config.Web.ListenAddress = *listenAddress
+	}
+
+	// Check weather terminal or not
+	if config.Cli.StandardLog || isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
 		log, err = zap.NewDevelopment()
 	} else {
 		log, err = zap.NewProduction()
@@ -60,20 +88,6 @@ func main() {
 	undo := zap.ReplaceGlobals(log)
 	defer undo()
 	log.Info("Log System Initialized.")
-	log.Info("Loading config file", zap.String("path", *configPath))
-	config, err := cradle.ReadConfigFromFile(*configPath)
-	if err != nil {
-		log.Fatal("Failed to read config file", zap.Error(err))
-	}
-	if collectedPathOverridden {
-		config.Web.CollectedPath = *collectedPath
-	}
-	if metricsPathOverridden {
-		config.Web.MetricPath = *metricsPath
-	}
-	if listenAddressOverridden {
-		config.Web.ListenAddress = *listenAddress
-	}
 
 	cr, err := cradle.New(config)
 	if err != nil {
