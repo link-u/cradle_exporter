@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"syscall"
 	"text/template"
@@ -166,7 +167,17 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 		}
 	})
 	go func() {
-		err := http.ListenAndServe(cradle.AppConfig.HttpListenAddr, r)
+		ctx := ctx
+		baseContext := func(listener net.Listener) context.Context {
+			ctx := ctx
+			return ctx
+		}
+		server := &http.Server{
+			Addr:        cradle.AppConfig.HttpListenAddr,
+			Handler:     r,
+			BaseContext: baseContext,
+		}
+		err := server.ListenAndServe()
 		if err != nil {
 			log.Error("Failed to run HTTP server", zap.Error(err))
 		}

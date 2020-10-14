@@ -20,6 +20,7 @@ type ScriptConfig struct {
 
 type ServiceConfig struct {
 	Path      string   `yaml:"path,omitempty"`
+	Args      []string `yaml:"args,omitempty"`
 	Endpoints []string `yaml:"endpoints,omitempty"`
 }
 

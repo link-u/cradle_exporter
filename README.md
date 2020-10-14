@@ -6,17 +6,15 @@
 [![Publish Docker image](https://github.com/link-u/cradle_exporter/workflows/Publish%20Docker%20image/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Publish+Docker+image%22)
 [![Build debian packages](https://github.com/link-u/cradle_exporter/workflows/Build%20debian%20packages/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Build+debian+packages%22)
 
-`cradle_exporter` do:
+`cradle_exporter` gathers output from other exporters into one endpoint, `/collected`.
 
- - Daemonize multiple exporters
-   - Executes exporters with given args.
-   - Restarts when the executed process dies.
- - Executes given scripts periodically.
-   - Supports cron-notations.
-   - Cache the execution results.
- - Serve static files in specified directory.
+Support these modes:
 
-`cradle_exporter` exposes just only one entrypoint, `/probe`(which is configurable), which gathers all metrics from all exporters, scripts and files to make it easier to collect metrics from multiple servers.
+ - `service` - Daemonize (supervise) other exporter binary and scrape endpoints.
+ - `exporter` - Just scrape other exporters and gather results (do not supervise them).
+ - `script` - Execute a given shell script and expose a result.
+ - `cron` - like `script` mode, but execute a script periodically.
+ - `static` - Read static files from given paths.
 
 # How to use?
 
@@ -26,7 +24,13 @@
   cradle-exporter:
     image: ghcr.io/link-u/cradle_exporter
     expose:
-      - 9231
+       - 9231
+    command:
+       - '--config=/etc/cradle_exporter/config.yml'
+    volume:
+       # See example/config/config.yml as an example.
+       - 'example/config:/etc/cradle_exporter'
+       - 'example/script:/some/path/to/store/scripts'
     restart: always
 ```
 
@@ -40,6 +44,26 @@
         - 'http://host_to_nodes:port/'
         - 'https://host_to_nodes:port/'
 ```
+
+# How to configure `cradle_exporter`
+
+## Main config file (Given by `--config=<name>.yml`)
+
+```yaml
+---
+include_dirs:
+  - '/etc/cradle_exporter/conf.d'
+```
+
+It reads all files in `/etc/cradle_exporter/conf.d` as a target config.
+
+Please see below:
+
+## Target config files
+
+### Service Target
+
+
 
 # License
 
