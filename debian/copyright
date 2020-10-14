@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: cradle_exporter
+Upstream-Name: cradle-exporter
 Source: https://github.com/link-u/cradle_exporter
 
 Files: *

@@ -1,4 +1,4 @@
-cradle_exporter (%VERSION%) stable; urgency=low
+cradle-exporter (%VERSION%) stable; urgency=low
 
   * Initial release - see https://github.com/link-u/cradle_exporter/releases for more details
 
