@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+export DH_VERBOSE=1
+
+%:
+	dh $@ --without autoreconf
+
+.PHONY: override_dh_auto_clean
+override_dh_auto_clean:
+	dh_testdir
+	make clean
+
+.PHONY: override_dh_auto_build
+override_dh_auto_build:
+	dh_testdir
+	make cradle_exporter
+
+.PHONY: override_dh_auto_install
+override_dh_auto_install:
+	dh_testdir
+	mkdir -p debian/tmp/usr/bin
+	install -m 0755 -o nobody -g nogroup cradle_exporter debian/tmp/usr/bin/cradle_exporter
+	cd debian/tmp && find .

@@ -1,0 +1,14 @@
+[Unit]
+Description=A cradle of prometheus exporters.
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=/run/cradle_exporter.pid
+ExecStartPre=/usr/bin/cradle_exporter -t
+ExecStart=/usr/bin/cradle_exporter
+ExecStop=/bin/kill -s QUIT $MAINPID
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

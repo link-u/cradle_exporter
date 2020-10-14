@@ -4,6 +4,7 @@
 [![Build on macOS](https://github.com/link-u/cradle_exporter/workflows/Build%20on%20macOS/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Build+on+macOS%22)
 [![Build on Windows](https://github.com/link-u/cradle_exporter/workflows/Build%20on%20Windows/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Build+on+Windows%22)  
 [![Publish Docker image](https://github.com/link-u/cradle_exporter/workflows/Publish%20Docker%20image/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Publish+Docker+image%22)
+[![Build debian packages](https://github.com/link-u/cradle_exporter/workflows/Build%20debian%20packages/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Build+debian+packages%22)
 
 `cradle_exporter` do:
 
@@ -15,8 +16,7 @@
    - Cache the execution results.
  - Serve static files in specified directory.
 
-`cradle_exporter` exposes just only one entrypoint, `/probe`, which gathers all metrics collected from all exporters, scripts and files.
-So it would be easier to collect metrics from multiple servers.
+`cradle_exporter` exposes just only one entrypoint, `/probe`(which is configurable), which gathers all metrics from all exporters, scripts and files to make it easier to collect metrics from multiple servers.
 
 # How to use?
 

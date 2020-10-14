@@ -1,0 +1,14 @@
+Source: prometheus-exporter-deck
+Section: utils
+Priority: optional
+Maintainer: Ryo Hirafuji <ryo.hirafuji@link-u.co.jp>
+Build-Depends: debhelper (>= 10)
+Standards-Version: 4.1.2
+Homepage: https://github.com/link-u/dpkg_prometheus-exporter-deck
+Vcs-Git: https://github.com/link-u/dpkg_prometheus-exporter-deck.git
+Vcs-Browser: https://github.com/link-u/dpkg_prometheus-exporter-deck.git
+
+Package: prometheus-exporter-deck
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: The strongest deck of prometheus exporters.
