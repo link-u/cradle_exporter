@@ -1,3 +1,7 @@
 ---
 include_dirs:
   - './example/config/conf.d'
+web:
+  listen_address: ':9231'
+  metric_path:    '/metrics'
+  collected_path: '/collected'

@@ -52,7 +52,11 @@ Support these modes:
 ```yaml
 ---
 include_dirs:
-  - '/etc/cradle_exporter/conf.d'
+  - './example/config/conf.d'
+web:
+  listen_address: ':9231' # can be overridden by --listen-address argument
+  metric_path:    '/metrics' # can be overridden by --metric-path argument
+  collected_path: '/collected' # can be overridden by --collected-path argument
 ```
 
 It reads all files in `/etc/cradle_exporter/conf.d` as a target config.

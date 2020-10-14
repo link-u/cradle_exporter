@@ -1,26 +1,51 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
 	"github.com/link-u/cradle_exporter/internal/cradle"
 	"github.com/mattn/go-isatty"
 	"go.uber.org/zap"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-var (
-	configPath    = flag.String("config", "/etc/cradle_exporter/config.yml", "Config file path")
-	collectedPath = flag.String("web.collected-path", "/collected", "Path under which to expose metrics")
-	metricsPath   = flag.String("web.metric-path", "/metrics", "Path under which to expose metrics")
-	listenAddress = flag.String("web.listen-address", ":9231", "Address to listen on for web interface and telemetry.")
-)
+const version = "v1.0.0"
 
 func main() {
 	var err error
 	var log *zap.Logger
-	flag.Parse()
+	configPath := kingpin.Flag("config", "Config file path").
+		Default("/etc/cradle_exporter/config.yml").
+		String()
+
+	collectedPathOverridden := false
+	collectedPath := kingpin.Flag("web.collected-path", "Path under which to expose metrics").
+		Default("/collected").
+		Action(func(_ *kingpin.ParseContext) error {
+			collectedPathOverridden = true
+			return nil
+		}).String()
+
+	metricsPathOverridden := false
+	metricsPath := kingpin.Flag("web.metric-path", "Path under which to expose metrics").
+		Default("/metrics").
+		Action(func(_ *kingpin.ParseContext) error {
+			metricsPathOverridden = true
+			return nil
+		}).String()
+
+	listenAddressOverridden := false
+	listenAddress := kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").
+		Default(":9231").
+		Action(func(_ *kingpin.ParseContext) error {
+			listenAddressOverridden = true
+			return nil
+		}).
+		String()
+	kingpin.Version(version)
+	kingpin.HelpFlag.Short('h')
+	kingpin.Parse()
 
 	// Check is terminal
 	if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
@@ -40,13 +65,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to read config file", zap.Error(err))
 	}
-	if collectedPath == nil || *collectedPath != "" {
+	if collectedPathOverridden {
 		config.Web.CollectedPath = *collectedPath
 	}
-	if metricsPath == nil || *metricsPath != "" {
+	if metricsPathOverridden {
 		config.Web.MetricPath = *metricsPath
 	}
-	if listenAddress == nil || *listenAddress != "" {
+	if listenAddressOverridden {
 		config.Web.ListenAddress = *listenAddress
 	}
 
