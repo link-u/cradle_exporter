@@ -23,18 +23,12 @@ type Target interface {
 	ConfigFilePath() string
 }
 
-type AppConfig struct {
-	MetricPath     string
-	CollectedPath  string
-	HttpListenAddr string
-}
-
 type Cradle struct {
-	AppConfig *AppConfig
+	WebConfig WebConfig
 	Targets   map[string]Target
 }
 
-func New(appConfig *AppConfig, config *Config) (*Cradle, error) {
+func New(config *Config) (*Cradle, error) {
 	configs := make(map[string]*TargetConfig)
 	for _, dir := range config.IncludeDirs {
 		if err := collectTargetConfigsFromDir(dir, configs); err != nil {
@@ -54,7 +48,7 @@ func New(appConfig *AppConfig, config *Config) (*Cradle, error) {
 		targets[fpath] = target
 	}
 	cradle := &Cradle{
-		AppConfig: appConfig,
+		WebConfig: config.Web,
 		Targets:   targets,
 	}
 	return cradle, nil
@@ -137,7 +131,7 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		t := template.Must(template.New("letter").Parse(indexTemplate))
 		var out bytes.Buffer
-		if err := t.Execute(&out, &cradle.AppConfig); err != nil {
+		if err := t.Execute(&out, cradle.WebConfig); err != nil {
 			http.Error(w, fmt.Sprintf("[Failed to execute template] %v", err), 500)
 			return
 		}
@@ -154,8 +148,8 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 				zap.Int("response-size", outSize))
 		}
 	})
-	r.Handle(cradle.AppConfig.MetricPath, promhttp.Handler())
-	r.HandleFunc(cradle.AppConfig.CollectedPath, func(w http.ResponseWriter, r *http.Request) {
+	r.Handle(cradle.WebConfig.MetricPath, promhttp.Handler())
+	r.HandleFunc(cradle.WebConfig.CollectedPath, func(w http.ResponseWriter, r *http.Request) {
 		for name, target := range cradle.Targets {
 			var buff bytes.Buffer
 			target.Scrape(r.Context(), &buff)
@@ -173,7 +167,7 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 			return ctx
 		}
 		server := &http.Server{
-			Addr:        cradle.AppConfig.HttpListenAddr,
+			Addr:        cradle.WebConfig.ListenAddress,
 			Handler:     r,
 			BaseContext: baseContext,
 		}

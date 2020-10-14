@@ -40,13 +40,17 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to read config file", zap.Error(err))
 	}
-
-	appConfig := &cradle.AppConfig{
-		MetricPath:     *metricsPath,
-		CollectedPath:  *collectedPath,
-		HttpListenAddr: *listenAddress,
+	if collectedPath == nil || *collectedPath != "" {
+		config.Web.CollectedPath = *collectedPath
 	}
-	cr, err := cradle.New(appConfig, config)
+	if metricsPath == nil || *metricsPath != "" {
+		config.Web.MetricPath = *metricsPath
+	}
+	if listenAddress == nil || *listenAddress != "" {
+		config.Web.ListenAddress = *listenAddress
+	}
+
+	cr, err := cradle.New(config)
 	if err != nil {
 		log.Fatal("Failed to create cradle", zap.Error(err))
 	}

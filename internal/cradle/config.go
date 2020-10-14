@@ -43,8 +43,15 @@ type TargetConfig struct {
 	StaticConfig   *StaticFileConfig `yaml:"static,omitempty"`
 }
 
+type WebConfig struct {
+	CollectedPath string `yaml:"collected_path,omitempty"`
+	MetricPath    string `yaml:"metric_path,omitempty"`
+	ListenAddress string `yaml:"listen_address,omitempty"`
+}
+
 type Config struct {
-	IncludeDirs []string `yaml:"include_dirs,omitempty"`
+	IncludeDirs []string  `yaml:"include_dirs,omitempty"`
+	Web         WebConfig `yaml:"web,omitempty"`
 }
 
 func ReadTargetConfigFromFile(path string) (*TargetConfig, error) {
