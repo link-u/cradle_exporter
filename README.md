@@ -33,10 +33,7 @@
 ## Prometheus config
 
 ```yaml
-  - job_name: 'cradlegit remote add origin git@github.com:link-u/cradle_exporter.git
-git branch -M main
-git push -u origin main
-'
+  - job_name: 'cradle_exporter'
     metrics_path: '/collected'
     static_configs:
       - targets:
