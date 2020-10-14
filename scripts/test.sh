@@ -24,5 +24,5 @@ apt install -y ./artifact/*.deb
 apt show cradle-exporter
 
 command -v cradle_exporter
-node_exporter -h
+cradle_exporter -h
 shouldBeSingleBinary "cradle_exporter"
