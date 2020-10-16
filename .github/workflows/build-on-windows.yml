@@ -26,5 +26,5 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
-          name: mrtg_exporter
-          path: mrtg_exporter
+          name: create_release
+          path: create_release

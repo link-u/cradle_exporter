@@ -23,5 +23,5 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
-          name: Pittari_macOS_x86_64
-          path: .bin/Pittari
+          name: create_release
+          path: create_release
