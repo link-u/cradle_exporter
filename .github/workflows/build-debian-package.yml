@@ -118,7 +118,7 @@ jobs:
         shell: bash
         run: |
           printenv DEPLOY_SCRIPT | base64 -d > deploy.sh
-          bash deploy.sh upload "${{ matrix.codename }}" "prometheus-exporter-deck" "${{ matrix.codename }}"
+          bash deploy.sh upload "${{ matrix.codename }}" "cradle_exporter" "${{ matrix.codename }}"
         env:
           DEPLOY_SCRIPT: ${{ secrets.YOROZU_DEPLOY_SCRIPT }}
 
