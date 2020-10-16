@@ -23,5 +23,5 @@ jobs:
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
-          name: create_release
-          path: create_release
+          name: cradle_exporter
+          path: cradle_exporter
