@@ -5,16 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"syscall"
 	"text/template"
 
 	"github.com/Code-Hex/golet"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 )
 
 type Target interface {
@@ -24,112 +21,101 @@ type Target interface {
 }
 
 type Cradle struct {
-	WebConfig WebConfig
-	Targets   map[string]Target
+	WebConfig     WebConfig
+	Targets       map[string]Target
+	Runner        *Runner
+	Server        http.Server
+	ServerHandler *mux.Router
 }
 
-func New(config *Config) (*Cradle, error) {
-	configs := make(map[string]*TargetConfig)
-	for _, dir := range config.IncludeDirs {
-		if err := collectTargetConfigsFromDir(dir, configs); err != nil {
-			return nil, err
-		}
-	}
-	targets := make(map[string]Target)
-	for fpath, cfg := range configs {
-		target := NewTarget(cfg)
-		if target == nil {
-			yamlBytes, err := yaml.Marshal(cfg)
-			if err != nil {
-				return nil, fmt.Errorf("invalid config(unknown target type): \n%v", err)
-			}
-			return nil, fmt.Errorf("invalid config(unknown target type): \n%s", string(yamlBytes))
-		}
-		targets[fpath] = target
-	}
+func New(config *Config) *Cradle {
 	cradle := &Cradle{
 		WebConfig: config.Web,
-		Targets:   targets,
+		Targets:   make(map[string]Target),
+		Runner:    nil,
+		Server:    http.Server{},
 	}
-	return cradle, nil
+	cradle.initServer()
+	return cradle
 }
 
-func NewTarget(cfg *TargetConfig) Target {
-	switch {
-	case cfg.StaticConfig != nil:
-		return &StaticFileTarget{
-			Config: cfg,
-		}
-	case cfg.CronJobConfig != nil:
-		return &CronJobTarget{
-			Config: cfg,
-		}
-	case cfg.ScriptConfig != nil:
-		return &ScriptTarget{
-			Config: cfg,
-		}
-	case cfg.ServiceConfig != nil:
-		return &ServiceTarget{
-			Config: cfg,
-		}
-	case cfg.ExporterConfig != nil:
-		return &ExporterTarget{
-			Config: cfg,
-		}
-	default:
-		return nil
-	}
-}
-
-type GoLetToZapLogger struct{}
-
-// Implements io.Writer
-func (_ GoLetToZapLogger) Write(p []byte) (n int, err error) {
-	zap.L().Info("go-let", zap.String("msg", string(p)))
-	return len(p), nil
-}
-
-func (cradle *Cradle) Run() error {
-	p := golet.New(context.Background())
-	p.SetLogger(GoLetToZapLogger{})
-	for _, target := range cradle.Targets {
-		s := target.CreateService()
-		if s != nil {
-			if err := p.Add(*s); err != nil {
-				return err
-			}
-		}
-	}
-	httpService := golet.Service{
-		Code: func(ctx context.Context) error {
-			return cradle.Expose(ctx)
-		},
-	}
-	if err := p.Add(httpService); err != nil {
+func (cradle *Cradle) Reload(cfg *Config) error {
+	log := zap.L()
+	targets, err := newTargets(cfg)
+	if err != nil {
+		log.Error("Failed to read config file. Nothing reloaded.", zap.Error(err))
 		return err
 	}
-	return p.Run()
+	runner, err := newRunner(targets)
+	if err != nil {
+		log.Error("Failed to read config file. Nothing reloaded.", zap.Error(err))
+		return err
+	}
+	if cradle.Runner != nil {
+		cradle.Runner.Stop()
+		cradle.Runner.Wait()
+	}
+	// start new runner with new targets
+	cradle.Targets = targets
+	cradle.Runner = runner
+	go func() {
+		err := cradle.Runner.Run()
+		if err != nil {
+			log.Error("Failed to execute runner", zap.Error(err))
+		}
+	}()
+	return nil
 }
 
-const indexTemplate = `<html>
-<head><title>Cradle Exporter</title></head>
-<body>
-<h1>Cradle Exporter</h1>
-<p>Currently listen at {{ .HttpListenAddr }}</p>
-<ul>
-  <li><a href="{{ .MetricPath }}">Metrics</a></li>
-  <li><a href="{{ .CollectedPath }}">CollectedMetrics</a></li>
-</ul>
-</body>
-</html>
-`
+func (cradle *Cradle) ListenAndServe() error {
+	err := cradle.Server.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+	return nil
+}
 
-func (cradle *Cradle) Expose(ctx context.Context) error {
+func (cradle *Cradle) Shutdown(ctx context.Context) error {
+	var err error
+	cradle.Runner.Stop()
+	cradle.Runner.Wait()
+
+	err = cradle.Server.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cradle *Cradle) stopServer(ctx context.Context) error {
+	err := cradle.Server.Shutdown(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ---
+
+func (cradle *Cradle) initServer() {
 	log := zap.L()
-	c := ctx.(*golet.Context)
 	r := mux.NewRouter().StrictSlash(true)
+	cradle.Server.Handler = r
+	cradle.Server.Addr = cradle.WebConfig.ListenAddress
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		t := template.Must(template.New("letter").Parse(indexTemplate))
+		t := template.Must(template.New("letter").Parse(`
+<html>
+		<head><title>Cradle Exporter</title></head>
+		<body>
+		<h1>Cradle Exporter</h1>
+		<p>Currently listen at {{ .HttpListenAddr }}</p>
+		<ul>
+		<li><a href="{{ .MetricPath }}">Metrics</a></li>
+		<li><a href="{{ .CollectedPath }}">CollectedMetrics</a></li>
+		</ul>
+		</body>
+		</html>
+`))
 		var out bytes.Buffer
 		if err := t.Execute(&out, cradle.WebConfig); err != nil {
 			http.Error(w, fmt.Sprintf("[Failed to execute template] %v", err), 500)
@@ -161,38 +147,4 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 			_, _ = w.Write([]byte("\n"))
 		}
 	})
-	go func() {
-		ctx := ctx
-		baseContext := func(listener net.Listener) context.Context {
-			ctx := ctx
-			return ctx
-		}
-		server := &http.Server{
-			Addr:        cradle.WebConfig.ListenAddress,
-			Handler:     r,
-			BaseContext: baseContext,
-		}
-		err := server.ListenAndServe()
-		if err != nil {
-			log.Error("Failed to run HTTP server", zap.Error(err))
-		}
-	}()
-	for {
-		select {
-		// You can notify signal received.
-		case <-c.Recv():
-			signal, err := c.Signal()
-			if err != nil {
-				log.Error("Failed to receive signal", zap.Error(err))
-				return err
-			}
-			switch signal {
-			case syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT:
-				log.Info("Signal caught", zap.String("signal", signal.String()))
-				return nil
-			}
-		case <-ctx.Done():
-			return nil
-		}
-	}
 }
