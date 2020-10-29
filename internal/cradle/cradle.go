@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
+	"strings"
 	"text/template"
 
 	"github.com/Code-Hex/golet"
@@ -103,21 +105,42 @@ func (cradle *Cradle) initServer() {
 	cradle.Server.Handler = r
 	cradle.Server.Addr = cradle.WebConfig.ListenAddress
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		t := template.Must(template.New("letter").Parse(`
+		funcMap := template.FuncMap{
+			"typeOf": func(obj interface{}) string {
+				name := reflect.TypeOf(obj).String()
+				idx := strings.LastIndex(name, ".")
+				if idx > 0 {
+					name = name[idx+1:]
+				}
+				return name
+			},
+		}
+		t, err := template.New("index").Funcs(funcMap).Parse(`
 <html>
 		<head><title>Cradle Exporter</title></head>
 		<body>
 		<h1>Cradle Exporter</h1>
-		<p>Currently listen at {{ .HttpListenAddr }}</p>
-		<ul>
-		<li><a href="{{ .MetricPath }}">Metrics</a></li>
-		<li><a href="{{ .CollectedPath }}">CollectedMetrics</a></li>
-		</ul>
+		<p>Currently listen at {{ .WebConfig.ListenAddress }}</p>
+		<h2>Metrics</h2>
+			<ul>
+				<li><a href="{{ .WebConfig.MetricPath }}">Metrics</a></li>
+				<li><a href="{{ .WebConfig.CollectedPath }}">CollectedMetrics</a></li>
+			</ul>
+		<h2>Enabled Targets</h2>
+			<ul>
+			{{ range $key, $value := .Targets }}
+				<li> [{{ typeOf $value }}] {{ html $key }}</li>
+			{{ end }}
+			</ul>
 		</body>
 		</html>
-`))
+`)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("[Failed to parse template] %v", err), 500)
+			return
+		}
 		var out bytes.Buffer
-		if err := t.Execute(&out, cradle.WebConfig); err != nil {
+		if err := t.Execute(&out, cradle); err != nil {
 			http.Error(w, fmt.Sprintf("[Failed to execute template] %v", err), 500)
 			return
 		}
