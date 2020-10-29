@@ -150,6 +150,7 @@ func (cradle *Cradle) Expose(ctx context.Context) error {
 	})
 	r.Handle(cradle.WebConfig.MetricPath, promhttp.Handler())
 	r.HandleFunc(cradle.WebConfig.CollectedPath, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		for name, target := range cradle.Targets {
 			var buff bytes.Buffer
 			target.Scrape(r.Context(), &buff)

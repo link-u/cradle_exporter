@@ -1,0 +1,16 @@
+package main
+
+import (
+	"runtime"
+	"testing"
+)
+
+func TestGetFilename(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	t.Logf("Current test filename: %s", filename)
+}
+
+func TestDaemonMode(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	t.Logf("Current test filename: %s", filename)
+}

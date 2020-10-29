@@ -1,4 +1,4 @@
 ---
 static:
   paths:
-    - './example/static_files'
+    - './test/static_files'

@@ -1,8 +1,8 @@
 ---
 service:
-  path: './cradle_exporter'
+  path: 'go'
   args:
-    - '--config=./example/config/example-service.yml'
-    - '--web.listen-address=:9222'
+    - 'run'
+    - './test/servers/dying/main.go'
   endpoints:
-    - 'http://localhost:9222/metrics'
+    - 'http://localhost:9999/metricss'

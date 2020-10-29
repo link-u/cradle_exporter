@@ -3,6 +3,7 @@ package cradle
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -54,6 +55,15 @@ func scrapeEndpoint(ctx context.Context, w io.Writer, configFilePath string, end
 			zap.String("endpoint", endpoint),
 			zap.Int64("written", written),
 			zap.Int64("content-length", resp.ContentLength))
+	}
+	if resp.StatusCode < 200 || 300 <= resp.StatusCode {
+		log.Error("Failed to execute request", zap.String("config-file-path", configFilePath), zap.String("endpoint", endpoint), zap.Error(err))
+		_, _ = io.WriteString(w, "### Scraping Target\n")
+		_, _ = io.WriteString(w, fmt.Sprintf("### Err: Server returns error code: %d\n", resp.StatusCode))
+		_, _ = io.WriteString(w, "### URL: "+endpoint+"\n")
+		_, _ = io.WriteString(w, "### Config: "+configFilePath+"\n")
+		_, _ = io.WriteString(w, promCommentOut(buf.String()))
+		return
 	}
 	_, _ = io.WriteString(w, "### Scraping Target\n")
 	_, _ = io.WriteString(w, "### URL: "+endpoint+"\n")

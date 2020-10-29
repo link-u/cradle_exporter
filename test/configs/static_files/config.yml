@@ -1,0 +1,9 @@
+---
+include_dirs:
+  - './test/configs/static_files/conf.d'
+cli:
+  standard_log: true
+web:
+  listen_address: 'localhost:9231'
+  metric_path:    '/metrics'
+  collected_path: '/collected'

@@ -1,4 +1,4 @@
 ---
 script:
-  path: './example/scripts/42.sh'
+  path: './test/scripts/42.sh'
   args: []

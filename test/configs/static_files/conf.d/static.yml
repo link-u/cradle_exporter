@@ -1,0 +1,4 @@
+---
+static:
+  paths:
+    - './test/configs/static_files/static_files'
