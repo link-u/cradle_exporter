@@ -163,7 +163,7 @@ func (cradle *Cradle) initServer() {
 		}
 	})
 	r.Handle(cradle.WebConfig.MetricPath, promhttp.Handler())
-	r.HandleFunc(cradle.WebConfig.CollectedPath, func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc(cradle.WebConfig.ProbePath, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		for name, target := range cradle.Targets {
 			var buff bytes.Buffer
