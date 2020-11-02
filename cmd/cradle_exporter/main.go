@@ -33,12 +33,12 @@ var standardLog = kingpin.
 		return nil
 	}).Bool()
 
-var collectedPathOverridden = false
-var collectedPath = kingpin.
-	Flag("web.collected-path", "Path under which to expose metrics").
-	Default("/collected").
+var probePathOverridden = false
+var probePath = kingpin.
+	Flag("web.probe-path", "Path under which to expose metrics").
+	Default("/probe").
 	Action(func(_ *kingpin.ParseContext) error {
-		collectedPathOverridden = true
+		probePathOverridden = true
 		return nil
 	}).String()
 
@@ -76,8 +76,8 @@ func loadConfig() (*cradle.Config, error) {
 		config.Cli.StandardLog = *standardLog
 	}
 
-	if collectedPathOverridden {
-		config.Web.CollectedPath = *collectedPath
+	if probePathOverridden {
+		config.Web.ProbePath = *probePath
 	}
 
 	if metricsPathOverridden {

@@ -48,7 +48,7 @@ type CliConfig struct {
 }
 
 type WebConfig struct {
-	CollectedPath string `yaml:"collected_path,omitempty"`
+	ProbePath     string `yaml:"probe_path,omitempty"`
 	MetricPath    string `yaml:"metric_path,omitempty"`
 	ListenAddress string `yaml:"listen_address,omitempty"`
 }

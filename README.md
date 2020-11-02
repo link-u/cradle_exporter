@@ -8,7 +8,7 @@
 [![Publish Docker image](https://github.com/link-u/cradle_exporter/workflows/Publish%20Docker%20image/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Publish+Docker+image%22)
 [![Build debian packages](https://github.com/link-u/cradle_exporter/workflows/Build%20debian%20packages/badge.svg)](https://github.com/link-u/cradle_exporter/actions?query=workflow%3A%22Build+debian+packages%22)
 
-`cradle_exporter` gathers output from other exporters into one endpoint, `/collected`.
+`cradle_exporter` gathers output from other exporters into one endpoint, `/probe`.
 
 Support these modes:
 
@@ -40,7 +40,7 @@ Support these modes:
 
 ```yaml
   - job_name: 'cradle_exporter'
-    metrics_path: '/collected'
+    metrics_path: '/probe'
     static_configs:
       - targets:
         - 'http://host_to_nodes:port/'
@@ -60,7 +60,7 @@ cli:
 web:
   listen_address: ':9231' # can be overridden by --web.listen-address argument
   metric_path:    '/metrics' # can be overridden by --web.metric-path argument
-  collected_path: '/collected' # can be overridden by --web.collected-path argument
+  probe_path:     '/probe' # can be overridden by --web.probe-path argument
 ```
 
 It reads all files in `/etc/cradle_exporter/conf.d` as a target config.
