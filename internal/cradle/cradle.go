@@ -41,6 +41,11 @@ func New(config *Config) *Cradle {
 	return cradle
 }
 
+func (cradle *Cradle) Check(cfg *Config) error {
+	_, err := newTargets(cfg)
+	return err
+}
+
 func (cradle *Cradle) Reload(cfg *Config) error {
 	log := zap.L()
 	targets, err := newTargets(cfg)

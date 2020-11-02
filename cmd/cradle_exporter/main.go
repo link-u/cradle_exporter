@@ -10,7 +10,7 @@ import (
 	"github.com/link-u/cradle_exporter/internal/cradle"
 	"github.com/mattn/go-isatty"
 	"go.uber.org/zap"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const version = "v1.0.0"
@@ -18,6 +18,11 @@ const version = "v1.0.0"
 /*****************************************************************************
   Flags
  *****************************************************************************/
+
+var isConfigCheckMode = kingpin.
+	Flag("test-config", "Check config file and exit.").
+	Short('t').
+	Default("false").Bool()
 
 var standardLogOverridden = false
 var standardLog = kingpin.
@@ -60,11 +65,11 @@ var configPath = kingpin.
 	Flag("config", "Config file path").
 	Default("/etc/cradle_exporter/config.yml").String()
 
-func loadConfig() *cradle.Config {
+func loadConfig() (*cradle.Config, error) {
 	config, err := cradle.ReadConfigFromFile(*configPath)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to read config file: %s, err=%v", *configPath, err)
-		os.Exit(-1)
+		err = fmt.Errorf("failed to read config file: %s, err=%v", *configPath, err)
+		return nil, err
 	}
 
 	if standardLogOverridden {
@@ -81,7 +86,7 @@ func loadConfig() *cradle.Config {
 	if listenAddressOverridden {
 		config.Web.ListenAddress = *listenAddress
 	}
-	return config
+	return config, nil
 }
 
 func main() {
@@ -92,10 +97,14 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	config := loadConfig()
+	cfg, err := loadConfig()
+	if err != nil {
+		_, _ = fmt.Fprint(os.Stderr, err)
+		os.Exit(-1)
+	}
 
 	// Check weather terminal or not
-	if config.Cli.StandardLog || isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+	if cfg.Cli.StandardLog || isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
 		log, err = zap.NewDevelopment()
 	} else {
 		log, err = zap.NewProduction()
@@ -108,7 +117,17 @@ func main() {
 	defer undo()
 	log.Info("Log System Initialized.")
 
-	cr := cradle.New(config)
+	cr := cradle.New(cfg)
+
+	if *isConfigCheckMode {
+		// Just check and report result
+		err = cr.Check(cfg)
+		if err != nil {
+			log.Fatal("Failed to read config file", zap.Error(err))
+		}
+		log.Info("Checking config file: OK!")
+		return
+	}
 
 	{
 		// Setup signal handling
@@ -126,7 +145,12 @@ func main() {
 					log.Fatal("Failed to shutdown cradle", zap.Error(err))
 				}
 			case syscall.SIGHUP:
-				err := cr.Reload(loadConfig())
+				cfg, err := loadConfig()
+				if err != nil {
+					log.Warn("Failed to reload config", zap.Error(err))
+					break
+				}
+				err = cr.Reload(cfg)
 				if err == nil {
 					log.Info("Config reloaded")
 				} else {
@@ -138,7 +162,7 @@ func main() {
 	}
 
 	// reload with the same config.
-	err = cr.Reload(config)
+	err = cr.Reload(cfg)
 	if err != nil {
 		log.Fatal("Failed to reload config", zap.Error(err))
 	}

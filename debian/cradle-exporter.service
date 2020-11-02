@@ -7,6 +7,7 @@ Type=forking
 PIDFile=/run/cradle_exporter.pid
 ExecStartPre=/usr/bin/cradle_exporter -t
 ExecStart=/usr/bin/cradle_exporter
+ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 PrivateTmp=true
 
