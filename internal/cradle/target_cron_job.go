@@ -6,22 +6,12 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/Code-Hex/golet"
 	"go.uber.org/zap"
 )
 
 type CronJobTarget struct {
 	Config     *TargetConfig
 	lastResult []byte
-}
-
-func (target *CronJobTarget) CreateService() *golet.Service {
-	return &golet.Service{
-		Code: func(ctx context.Context) error {
-			return target.update(ctx)
-		},
-		Every: target.Config.CronJobConfig.Every,
-	}
 }
 
 func (target *CronJobTarget) Scrape(ctx context.Context, w io.Writer) {

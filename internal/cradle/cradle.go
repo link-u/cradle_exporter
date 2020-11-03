@@ -15,15 +15,14 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/Code-Hex/golet"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/robfig/cron"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
 type Target interface {
-	CreateService() *golet.Service
 	Scrape(ctx context.Context, w io.Writer)
 	ConfigFilePath() string
 }
@@ -34,6 +33,7 @@ type Cradle struct {
 	haltedValue  atomic.Bool
 	//
 	serverValue atomic.Value
+	runnerValue atomic.Value
 }
 
 func New(config *Config) *Cradle {
@@ -65,6 +65,11 @@ func (cradle *Cradle) Reload(config *Config) error {
 		log.Error("Failed to create server. Nothing reloaded.", zap.Error(err))
 		return err
 	}
+	newRunner, err := cradle.createRunner(targets)
+	if err != nil {
+		log.Error("Failed to create runner. Nothing reloaded.", zap.Error(err))
+		return err
+	}
 
 	cradle.targetsValue.Store(targets)
 	cradle.configValue.Store(config)
@@ -73,6 +78,12 @@ func (cradle *Cradle) Reload(config *Config) error {
 	cradle.serverValue.Store(newServer)
 	if oldServer != nil {
 		oldServer.Shutdown()
+	}
+	// Swap runner
+	oldRunner := cradle.Runner()
+	cradle.runnerValue.Store(newRunner)
+	if oldRunner != nil {
+		oldRunner.Shutdown()
 	}
 	return nil
 }
@@ -91,6 +102,20 @@ func (cradle *Cradle) Run() error {
 			err := server.Run()
 			if err != nil {
 				log.Error("Failed to run server", zap.Error(err))
+			}
+		}
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for !cradle.isHalted() {
+			runner := cradle.Runner()
+			if runner == nil {
+				continue
+			}
+			err := runner.Run()
+			if err != nil {
+				log.Error("Failed to run runner", zap.Error(err))
 			}
 		}
 	}()
@@ -129,11 +154,44 @@ func (cradle *Cradle) Server() *Server {
 	return nil
 }
 
+func (cradle *Cradle) Runner() *Runner {
+	if runner, ok := cradle.runnerValue.Load().(*Runner); ok {
+		return runner
+	}
+	return nil
+}
+
 func (cradle *Cradle) isHalted() bool {
 	return cradle.haltedValue.Load()
 }
 
 // ---
+func (cradle *Cradle) createRunner(targets map[string]Target) (*Runner, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	r := Runner{
+		context: ctx,
+		cancel:  cancel,
+		targets: targets,
+		cron:    cron.New(),
+		daemons: make([]*ServiceTarget, 0),
+	}
+	for _, target := range r.targets {
+		switch target := target.(type) {
+		case *CronJobTarget:
+			config := target.Config.CronJobConfig
+			err := r.cron.AddFunc(config.Every, func() {
+				_ = target.update(r.context)
+			})
+			if err != nil {
+				return nil, err
+			}
+		case *ServiceTarget:
+			r.daemons = append(r.daemons, target)
+		}
+	}
+	return &r, nil
+}
+
 func (cradle *Cradle) createServer(config *Config) (*Server, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is nil or wrong interface: config=%v", cradle.configValue.Load())

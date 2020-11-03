@@ -2,57 +2,74 @@ package cradle
 
 import (
 	"context"
+	"os/exec"
 	"sync"
-	"syscall"
-	"time"
 
-	"github.com/Code-Hex/golet"
+	"github.com/robfig/cron"
+	"go.uber.org/atomic"
+	"go.uber.org/zap"
 )
 
 type Runner struct {
-	impl      golet.Runner
-	context   context.Context
-	canceller context.CancelFunc
-	wg        sync.WaitGroup
+	context context.Context
+	cancel  context.CancelFunc
+	targets map[string]Target
+	cron    *cron.Cron
+	daemons []*ServiceTarget
+	halted  atomic.Bool
 }
 
-func newRunner(targets map[string]Target) (*Runner, error) {
-	ctx, canceller := context.WithCancel(context.Background())
-	p := golet.New(ctx)
-	p.EnableColor()
-	p.SetInterval(time.Second * 1)
-	p.SetCtxCancelSignal(syscall.SIGTERM)
+type ZapInfoWriter struct{}
 
-	p.SetLogger(GoLetToZapLogger{})
+func (_ ZapInfoWriter) Write(p []byte) (n int, err error) {
+	log := zap.L()
+	log.Info("From daemon", zap.String("msg", string(p)))
+	return len(p), err
+}
 
-	for _, target := range targets {
-		s := target.CreateService()
-		if s != nil {
-			if err := p.Add(*s); err != nil {
-				canceller()
-				return nil, err
-			}
-		}
-	}
-	r := Runner{
-		impl:      p,
-		context:   ctx,
-		canceller: canceller,
-		wg:        sync.WaitGroup{},
-	}
-	return &r, nil
+type ZapErrorWriter struct{}
+
+func (_ ZapErrorWriter) Write(p []byte) (n int, err error) {
+	log := zap.L()
+	log.Error("From daemon", zap.String("msg", string(p)))
+	return len(p), err
 }
 
 func (r *Runner) Run() error {
-	r.wg.Add(1)
-	defer r.wg.Done()
-	return r.impl.Run()
+	var wg sync.WaitGroup
+	r.cron.Start()
+	for _, daemon := range r.daemons {
+		log := zap.L()
+		wg.Add(1)
+		go func(daemon *ServiceTarget) {
+			defer wg.Done()
+			var err error
+			for !r.halted.Load() {
+				args := []string{daemon.Config.ServiceConfig.Path}
+				args = append(args, daemon.Config.ServiceConfig.Args...)
+				log.Info("Daemon starting...",
+					zap.String("config-path", daemon.ConfigFilePath()),
+					zap.Strings("args", args))
+				cmd := exec.CommandContext(r.context, daemon.Config.ServiceConfig.Path, daemon.Config.ServiceConfig.Args...)
+				err = cmd.Start()
+				if err != nil {
+					log.Error("Failed to start daemon", zap.String("config-path", daemon.ConfigFilePath()), zap.Error(err))
+				}
+				cmd.Stdout = ZapInfoWriter{}
+				cmd.Stdout = ZapErrorWriter{}
+				err = cmd.Wait()
+				if err != nil {
+					log.Error("Daemon dead", zap.String("config-path", daemon.ConfigFilePath()), zap.Error(err))
+				}
+			}
+		}(daemon)
+	}
+	wg.Wait()
+	return nil
 }
 
-func (r *Runner) Stop() {
-	r.canceller()
-}
-
-func (r *Runner) Wait() {
-	r.wg.Wait()
+func (r *Runner) Shutdown() {
+	r.halted.Store(true)
+	r.cron.Stop()
+	r.cancel()
 }

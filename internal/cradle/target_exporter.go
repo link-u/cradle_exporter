@@ -3,16 +3,10 @@ package cradle
 import (
 	"context"
 	"io"
-
-	"github.com/Code-Hex/golet"
 )
 
 type ExporterTarget struct {
 	Config *TargetConfig
-}
-
-func (target *ExporterTarget) CreateService() *golet.Service {
-	return nil
 }
 
 func (target *ExporterTarget) Scrape(ctx context.Context, w io.Writer) {

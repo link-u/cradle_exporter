@@ -5,16 +5,10 @@ import (
 	"context"
 	"io"
 	"os/exec"
-
-	"github.com/Code-Hex/golet"
 )
 
 type ScriptTarget struct {
 	Config *TargetConfig
-}
-
-func (target *ScriptTarget) CreateService() *golet.Service {
-	return nil
 }
 
 func (target *ScriptTarget) Scrape(ctx context.Context, w io.Writer) {

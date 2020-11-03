@@ -8,16 +8,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Code-Hex/golet"
 	"go.uber.org/zap"
 )
 
 type StaticFileTarget struct {
 	Config *TargetConfig
-}
-
-func (target *StaticFileTarget) CreateService() *golet.Service {
-	return nil
 }
 
 func (target *StaticFileTarget) Scrape(_ context.Context, w io.Writer) {
