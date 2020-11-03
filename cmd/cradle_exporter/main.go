@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/facebookgo/pidfile"
 	"github.com/link-u/cradle_exporter/internal/cradle"
 	"github.com/mattn/go-isatty"
 	"go.uber.org/zap"
@@ -97,6 +98,11 @@ var clientCAPath = kingpin.
 var configPath = kingpin.
 	Flag("config", "Config file path").
 	Default("/etc/cradle_exporter/config.yml").
+	String()
+
+var pidFilePath = kingpin.
+	Flag("pid-file", "Process ID file path").
+	Default("").
 	String()
 
 func loadConfig() (*cradle.Config, error) {
@@ -210,6 +216,22 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to reload config", zap.Error(err))
 	}
+
+	if len(*pidFilePath) > 0 {
+		pidfile.SetPidfilePath(*pidFilePath)
+		err := pidfile.Write()
+		if err != nil {
+			log.Fatal(err.Error())
+			return
+		}
+		defer func() {
+			err := os.Remove(*pidFilePath)
+			if err != nil {
+				log.Error("Failed to remove PID file", zap.Error(err))
+			}
+		}()
+	}
+
 	err = cr.Run()
 	if err != nil {
 		log.Fatal("Failed to run cradle", zap.Error(err))
