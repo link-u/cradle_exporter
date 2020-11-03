@@ -4,6 +4,9 @@ include_dirs:
 cli:
   standard_log: true
 web:
-  listen_address: ':9231'
-  metric_path:    '/metrics'
-  probe_path:     '/probe'
+  listen_address:       ':9231'
+  metric_path:          '/metrics'
+  probe_path:           '/probe'
+  server_tls_cert_path: './example/config/ca/ca.crt'
+  server_tls_key_path:  './example/config/ca/ca.key'
+  client_ca_path:       './example/config/ca/ca.crt'

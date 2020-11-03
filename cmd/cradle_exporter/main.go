@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -22,7 +21,8 @@ const version = "v1.0.0"
 var isConfigCheckMode = kingpin.
 	Flag("test-config", "Check config file and exit.").
 	Short('t').
-	Default("false").Bool()
+	Default("false").
+	Bool()
 
 var standardLogOverridden = false
 var standardLog = kingpin.
@@ -31,7 +31,8 @@ var standardLog = kingpin.
 	Action(func(_ *kingpin.ParseContext) error {
 		standardLogOverridden = true
 		return nil
-	}).Bool()
+	}).
+	Bool()
 
 var probePathOverridden = false
 var probePath = kingpin.
@@ -40,7 +41,8 @@ var probePath = kingpin.
 	Action(func(_ *kingpin.ParseContext) error {
 		probePathOverridden = true
 		return nil
-	}).String()
+	}).
+	String()
 
 var metricsPathOverridden = false
 var metricsPath = kingpin.
@@ -49,7 +51,8 @@ var metricsPath = kingpin.
 	Action(func(_ *kingpin.ParseContext) error {
 		metricsPathOverridden = true
 		return nil
-	}).String()
+	}).
+	String()
 
 var listenAddressOverridden = false
 var listenAddress = kingpin.
@@ -61,9 +64,40 @@ var listenAddress = kingpin.
 	}).
 	String()
 
+var serverTLSCertPathOverridden = false
+var serverTLSCertPath = kingpin.
+	Flag("server-tls-cert-path", "Server TLS key path").
+	Default("").
+	Action(func(_ *kingpin.ParseContext) error {
+		serverTLSCertPathOverridden = true
+		return nil
+	}).
+	String()
+
+var serverTLSKeyPathOverridden = false
+var serverTLSKeyPath = kingpin.
+	Flag("server-tls-key-path", "Server TLS key path").
+	Default("").
+	Action(func(_ *kingpin.ParseContext) error {
+		serverTLSKeyPathOverridden = true
+		return nil
+	}).
+	String()
+
+var clientCAPathOverridden = false
+var clientCAPath = kingpin.
+	Flag("client-ca-path", "Client CA path").
+	Default("").
+	Action(func(_ *kingpin.ParseContext) error {
+		clientCAPathOverridden = true
+		return nil
+	}).
+	String()
+
 var configPath = kingpin.
 	Flag("config", "Config file path").
-	Default("/etc/cradle_exporter/config.yml").String()
+	Default("/etc/cradle_exporter/config.yml").
+	String()
 
 func loadConfig() (*cradle.Config, error) {
 	config, err := cradle.ReadConfigFromFile(*configPath)
@@ -75,16 +109,23 @@ func loadConfig() (*cradle.Config, error) {
 	if standardLogOverridden {
 		config.Cli.StandardLog = *standardLog
 	}
-
 	if probePathOverridden {
 		config.Web.ProbePath = *probePath
 	}
-
 	if metricsPathOverridden {
 		config.Web.MetricPath = *metricsPath
 	}
 	if listenAddressOverridden {
 		config.Web.ListenAddress = *listenAddress
+	}
+	if serverTLSCertPathOverridden {
+		config.Web.ServerTLSCertPath = *serverTLSCertPath
+	}
+	if serverTLSKeyPathOverridden {
+		config.Web.ServerTLSKeyPath = *serverTLSKeyPath
+	}
+	if clientCAPathOverridden {
+		config.Web.ClientCAPath = *clientCAPath
 	}
 	return config, nil
 }
@@ -140,10 +181,11 @@ func main() {
 				fallthrough
 			case syscall.SIGTERM:
 				log.Info("Shutting down...")
-				err := cr.Shutdown(context.Background())
+				err := cr.Shutdown()
 				if err != nil {
 					log.Fatal("Failed to shutdown cradle", zap.Error(err))
 				}
+				done <- true
 			case syscall.SIGHUP:
 				cfg, err := loadConfig()
 				if err != nil {
@@ -157,7 +199,6 @@ func main() {
 					log.Warn("Failed to reload config", zap.Error(err))
 				}
 			}
-			done <- true
 		}()
 	}
 
@@ -166,7 +207,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to reload config", zap.Error(err))
 	}
-	err = cr.ListenAndServe()
+	err = cr.Run()
 	if err != nil {
 		log.Fatal("Failed to run cradle", zap.Error(err))
 	}

@@ -3,16 +3,22 @@ package cradle
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/Code-Hex/golet"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -23,21 +29,22 @@ type Target interface {
 }
 
 type Cradle struct {
-	WebConfig     WebConfig
-	Targets       map[string]Target
-	Runner        *Runner
-	Server        http.Server
-	ServerHandler *mux.Router
+	configValue  atomic.Value
+	targetsValue atomic.Value
+	haltedValue  atomic.Bool
+	//
+	serverValue atomic.Value
 }
 
 func New(config *Config) *Cradle {
 	cradle := &Cradle{
-		WebConfig: config.Web,
-		Targets:   make(map[string]Target),
-		Runner:    nil,
-		Server:    http.Server{},
+		configValue:  atomic.Value{},
+		targetsValue: atomic.Value{},
+		haltedValue:  atomic.Bool{},
+		//
+		serverValue: atomic.Value{},
 	}
-	cradle.initServer()
+	cradle.configValue.Store(config)
 	return cradle
 }
 
@@ -46,69 +53,128 @@ func (cradle *Cradle) Check(cfg *Config) error {
 	return err
 }
 
-func (cradle *Cradle) Reload(cfg *Config) error {
+func (cradle *Cradle) Reload(config *Config) error {
 	log := zap.L()
-	targets, err := newTargets(cfg)
+	targets, err := newTargets(config)
 	if err != nil {
 		log.Error("Failed to read config file. Nothing reloaded.", zap.Error(err))
 		return err
 	}
-	runner, err := newRunner(targets)
+	newServer, err := cradle.createServer(config)
 	if err != nil {
-		log.Error("Failed to read config file. Nothing reloaded.", zap.Error(err))
+		log.Error("Failed to create server. Nothing reloaded.", zap.Error(err))
 		return err
 	}
-	if cradle.Runner != nil {
-		cradle.Runner.Stop()
-		cradle.Runner.Wait()
+
+	cradle.targetsValue.Store(targets)
+	cradle.configValue.Store(config)
+	// Swap server
+	oldServer := cradle.Server()
+	cradle.serverValue.Store(newServer)
+	if oldServer != nil {
+		oldServer.Shutdown()
 	}
-	// start new runner with new targets
-	cradle.Targets = targets
-	cradle.Runner = runner
+	return nil
+}
+
+func (cradle *Cradle) Run() error {
+	log := zap.L()
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		err := cradle.Runner.Run()
-		if err != nil {
-			log.Error("Failed to execute runner", zap.Error(err))
+		defer wg.Done()
+		for !cradle.isHalted() {
+			server := cradle.Server()
+			if server == nil {
+				continue
+			}
+			err := server.Run()
+			if err != nil {
+				log.Error("Failed to run server", zap.Error(err))
+			}
 		}
 	}()
+	wg.Wait()
 	return nil
 }
 
-func (cradle *Cradle) ListenAndServe() error {
-	err := cradle.Server.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		return err
-	}
-	return nil
-}
-
-func (cradle *Cradle) Shutdown(ctx context.Context) error {
-	var err error
-	cradle.Runner.Stop()
-	cradle.Runner.Wait()
-
-	err = cradle.Server.Shutdown(ctx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (cradle *Cradle) stopServer(ctx context.Context) error {
-	err := cradle.Server.Shutdown(ctx)
-	if err != nil {
-		return err
+func (cradle *Cradle) Shutdown() error {
+	cradle.haltedValue.Store(true)
+	if server := cradle.Server(); server != nil {
+		server.Shutdown()
 	}
 	return nil
 }
 
 // ---
 
-func (cradle *Cradle) initServer() {
+func (cradle *Cradle) Config() *Config {
+	if config, ok := cradle.configValue.Load().(*Config); ok {
+		return config
+	}
+	return nil
+}
+
+func (cradle *Cradle) Targets() map[string]Target {
+	if targets, ok := cradle.targetsValue.Load().(map[string]Target); ok {
+		return targets
+	}
+	return nil
+}
+
+func (cradle *Cradle) Server() *Server {
+	if server, ok := cradle.serverValue.Load().(*Server); ok {
+		return server
+	}
+	return nil
+}
+
+func (cradle *Cradle) isHalted() bool {
+	return cradle.haltedValue.Load()
+}
+
+// ---
+func (cradle *Cradle) createServer(config *Config) (*Server, error) {
+	if config == nil {
+		return nil, fmt.Errorf("config is nil or wrong interface: config=%v", cradle.configValue.Load())
+	}
+	var tlsConfig *tls.Config = nil
+	if len(config.Web.ServerTLSKeyPath) > 0 && len(config.Web.ServerTLSKeyPath) > 0 {
+		serverCert, err := tls.LoadX509KeyPair(config.Web.ServerTLSCertPath, config.Web.ServerTLSKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse key/cert: %v", err)
+		}
+		clientCAs := x509.NewCertPool()
+		if len(config.Web.ClientCAPath) > 0 {
+			pem, err := ioutil.ReadFile(config.Web.ClientCAPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read client certs from file: path='%v', err='%v'", config.Web.ClientCAPath, err)
+			}
+			if !clientCAs.AppendCertsFromPEM(pem) {
+				return nil, fmt.Errorf("failed to add client certs from file: %s", config.Web.ClientCAPath)
+			}
+		}
+		tlsConfig = &tls.Config{
+			Rand:               rand.Reader,
+			InsecureSkipVerify: true,
+			Certificates:       []tls.Certificate{serverCert},
+			ClientAuth:         tls.RequireAndVerifyClientCert,
+			ClientCAs:          clientCAs,
+		}
+	}
+	handler := cradle.createServerHandler(config)
+	server := Server{
+		listenAddress: config.Web.ListenAddress,
+		tlsConfig:     tlsConfig,
+		handler:       handler,
+		listener:      atomic.Value{},
+	}
+	return &server, nil
+}
+
+func (cradle *Cradle) createServerHandler(config *Config) *mux.Router {
 	log := zap.L()
 	r := mux.NewRouter().StrictSlash(true)
-	cradle.Server.Handler = r
-	cradle.Server.Addr = cradle.WebConfig.ListenAddress
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		funcMap := template.FuncMap{
 			"typeOf": func(obj interface{}) string {
@@ -125,11 +191,11 @@ func (cradle *Cradle) initServer() {
 		<head><title>Cradle Exporter</title></head>
 		<body>
 		<h1>Cradle Exporter</h1>
-		<p>Currently listen at {{ .WebConfig.ListenAddress }}</p>
+		<p>Currently listen at {{ .Config.Web.ListenAddress }}</p>
 		<h2>Metrics</h2>
 			<ul>
-				<li><a href="{{ .WebConfig.MetricPath }}">Metrics</a></li>
-				<li><a href="{{ .WebConfig.CollectedPath }}">CollectedMetrics</a></li>
+				<li><a href="{{ .Config.Web.MetricPath }}">Metrics</a></li>
+				<li><a href="{{ .Config.Web.ProbePath }}">Probed Metrics</a></li>
 			</ul>
 		<h2>Enabled Targets</h2>
 			<ul>
@@ -162,17 +228,21 @@ func (cradle *Cradle) initServer() {
 				zap.Int("response-size", outSize))
 		}
 	})
-	r.Handle(cradle.WebConfig.MetricPath, promhttp.Handler())
-	r.HandleFunc(cradle.WebConfig.ProbePath, func(w http.ResponseWriter, r *http.Request) {
+	r.Handle(config.Web.MetricPath, promhttp.Handler())
+	r.HandleFunc(config.Web.ProbePath, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		for name, target := range cradle.Targets {
-			var buff bytes.Buffer
-			target.Scrape(r.Context(), &buff)
-			_, _ = io.WriteString(w, "################################################################################\n")
-			_, _ = io.WriteString(w, fmt.Sprintf("### From: %s\n", name))
-			_, _ = io.WriteString(w, "################################################################################\n\n")
-			_, _ = io.Copy(w, &buff)
-			_, _ = w.Write([]byte("\n"))
+		targets := cradle.Targets()
+		if targets != nil {
+			for name, target := range targets {
+				var buff bytes.Buffer
+				target.Scrape(r.Context(), &buff)
+				_, _ = io.WriteString(w, "################################################################################\n")
+				_, _ = io.WriteString(w, fmt.Sprintf("### From: %s\n", name))
+				_, _ = io.WriteString(w, "################################################################################\n\n")
+				_, _ = io.Copy(w, &buff)
+				_, _ = w.Write([]byte("\n"))
+			}
 		}
 	})
+	return r
 }

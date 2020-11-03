@@ -7,3 +7,4 @@ web:
   listen_address: 'localhost:9231'
   metric_path:    '/metrics'
   collected_path: '/collected'
+  client_ca_path: './test/configs/ca.crt'

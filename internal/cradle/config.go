@@ -48,9 +48,12 @@ type CliConfig struct {
 }
 
 type WebConfig struct {
-	ProbePath     string `yaml:"probe_path,omitempty"`
-	MetricPath    string `yaml:"metric_path,omitempty"`
-	ListenAddress string `yaml:"listen_address,omitempty"`
+	ServerTLSCertPath string `yaml:"server_tls_cert_path,omitempty"`
+	ServerTLSKeyPath  string `yaml:"server_tls_key_path,omitempty"`
+	ClientCAPath      string `yaml:"client_ca_path,omitempty"`
+	ProbePath         string `yaml:"probe_path,omitempty"`
+	MetricPath        string `yaml:"metric_path,omitempty"`
+	ListenAddress     string `yaml:"listen_address,omitempty"`
 }
 
 type Config struct {

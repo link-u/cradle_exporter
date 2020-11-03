@@ -5,4 +5,4 @@ service:
     - 'run'
     - './test/servers/dying/main.go'
   endpoints:
-    - 'http://localhost:9999/metricss'
+    - 'http://localhost:9999/metrics'
