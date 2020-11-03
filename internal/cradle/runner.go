@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"sync"
+	"syscall"
 
 	"github.com/robfig/cron"
 	"go.uber.org/atomic"
@@ -59,7 +60,17 @@ func (r *Runner) Run() error {
 				cmd.Stdout = ZapErrorWriter{}
 				err = cmd.Wait()
 				if err != nil {
-					log.Error("Daemon dead", zap.String("config-path", daemon.ConfigFilePath()), zap.Error(err))
+					if exiterr, ok := err.(*exec.ExitError); ok {
+						// See https://stackoverflow.com/a/10385867
+						if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+							if status.Signaled() {
+								log.Error("Daemon caught signal", zap.String("config-path", daemon.ConfigFilePath()), zap.String("signal", status.StopSignal().String()))
+							}
+							if status.Exited() {
+								log.Error("Daemon dead", zap.String("config-path", daemon.ConfigFilePath()), zap.Int("exit-status", status.ExitStatus()))
+							}
+						}
+					}
 				}
 			}
 		}(daemon)

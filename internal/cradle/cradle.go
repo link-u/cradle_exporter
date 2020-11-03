@@ -128,6 +128,9 @@ func (cradle *Cradle) Shutdown() error {
 	if server := cradle.Server(); server != nil {
 		server.Shutdown()
 	}
+	if runner := cradle.Runner(); runner != nil {
+		runner.Shutdown()
+	}
 	return nil
 }
 
