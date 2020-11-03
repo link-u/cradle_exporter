@@ -24,7 +24,7 @@ type ZapInfoWriter struct{}
 
 func (_ ZapInfoWriter) Write(p []byte) (n int, err error) {
 	log := zap.L()
-	log.Info("From daemon", zap.String("msg", string(p)))
+	log.Info("daemon/stdout", zap.String("msg", string(p)))
 	return len(p), err
 }
 
@@ -32,7 +32,7 @@ type ZapErrorWriter struct{}
 
 func (_ ZapErrorWriter) Write(p []byte) (n int, err error) {
 	log := zap.L()
-	log.Error("From daemon", zap.String("msg", string(p)))
+	log.Info("daemon/stderr", zap.String("msg", string(p)))
 	return len(p), err
 }
 
@@ -53,7 +53,7 @@ func (r *Runner) Run() error {
 					zap.Strings("args", args))
 				cmd := exec.CommandContext(r.context, daemon.Config.ServiceConfig.Path, daemon.Config.ServiceConfig.Args...)
 				cmd.Stdout = ZapInfoWriter{}
-				cmd.Stdout = ZapErrorWriter{}
+				cmd.Stderr = ZapErrorWriter{}
 				err = cmd.Start()
 				if err != nil {
 					log.Error("Failed to start daemon", zap.String("config-path", daemon.ConfigFilePath()), zap.Error(err))
