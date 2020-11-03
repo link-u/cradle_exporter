@@ -14,3 +14,15 @@ cl:
 .PHONY: test
 test:
 	go test ./...
+
+.PHONY: test-run
+test-run: cradle_exporter
+	./cradle_exporter --config=example/config/config.yml
+
+.PHONY: test-call
+test-call:
+	curl --key example/config/ca/test.key --cert example/config/ca/test.crt -k https://localhost:9231/
+
+.PHONY: test-reload
+test-reload:
+	killall -s HUP cradle_exporter

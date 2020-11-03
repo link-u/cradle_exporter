@@ -170,33 +170,36 @@ func main() {
 		return
 	}
 
+	done := make(chan bool, 1)
 	{
 		// Setup signal handling
 		signals := make(chan os.Signal, 1)
-		done := make(chan bool, 1)
 		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 		go func() {
-			switch <-signals {
-			case syscall.SIGINT:
-				fallthrough
-			case syscall.SIGTERM:
-				log.Info("Shutting down...")
-				err := cr.Shutdown()
-				if err != nil {
-					log.Fatal("Failed to shutdown cradle", zap.Error(err))
-				}
-				done <- true
-			case syscall.SIGHUP:
-				cfg, err := loadConfig()
-				if err != nil {
-					log.Warn("Failed to reload config", zap.Error(err))
-					break
-				}
-				err = cr.Reload(cfg)
-				if err == nil {
-					log.Info("Config reloaded")
-				} else {
-					log.Warn("Failed to reload config", zap.Error(err))
+			for {
+				switch <-signals {
+				case syscall.SIGINT:
+					fallthrough
+				case syscall.SIGTERM:
+					log.Info("Shutting down...")
+					err := cr.Shutdown()
+					if err != nil {
+						log.Fatal("Failed to shutdown cradle", zap.Error(err))
+					}
+					done <- true
+					return
+				case syscall.SIGHUP:
+					cfg, err := loadConfig()
+					if err != nil {
+						log.Warn("Failed to reload config", zap.Error(err))
+						break
+					}
+					err = cr.Reload(cfg)
+					if err == nil {
+						log.Info("Config reloaded")
+					} else {
+						log.Warn("Failed to reload config", zap.Error(err))
+					}
 				}
 			}
 		}()
