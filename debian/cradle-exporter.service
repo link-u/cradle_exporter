@@ -3,7 +3,7 @@ Description=A cradle of prometheus exporters.
 After=syslog.target network.target remote-fs.target nss-lookup.target
 
 [Service]
-Type=forking
+Type=simple
 PIDFile=/run/cradle_exporter.pid
 ExecStartPre=/usr/bin/cradle_exporter -t
 ExecStart=/usr/bin/cradle_exporter '--pid-file=/run/cradle_exporter.pid'
