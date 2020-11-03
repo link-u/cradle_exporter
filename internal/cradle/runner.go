@@ -52,12 +52,12 @@ func (r *Runner) Run() error {
 					zap.String("config-path", daemon.ConfigFilePath()),
 					zap.Strings("args", args))
 				cmd := exec.CommandContext(r.context, daemon.Config.ServiceConfig.Path, daemon.Config.ServiceConfig.Args...)
+				cmd.Stdout = ZapInfoWriter{}
+				cmd.Stdout = ZapErrorWriter{}
 				err = cmd.Start()
 				if err != nil {
 					log.Error("Failed to start daemon", zap.String("config-path", daemon.ConfigFilePath()), zap.Error(err))
 				}
-				cmd.Stdout = ZapInfoWriter{}
-				cmd.Stdout = ZapErrorWriter{}
 				err = cmd.Wait()
 				if err != nil {
 					if exiterr, ok := err.(*exec.ExitError); ok {

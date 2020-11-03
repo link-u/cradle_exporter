@@ -109,13 +109,13 @@ func loadConfig() (*cradle.Config, error) {
 	if standardLogOverridden {
 		config.Cli.StandardLog = *standardLog
 	}
-	if probePathOverridden {
+	if probePathOverridden || len(config.Web.ProbePath) == 0 {
 		config.Web.ProbePath = *probePath
 	}
-	if metricsPathOverridden {
+	if metricsPathOverridden || len(config.Web.MetricPath) == 0 {
 		config.Web.MetricPath = *metricsPath
 	}
-	if listenAddressOverridden {
+	if listenAddressOverridden || len(config.Web.ListenAddress) == 0 {
 		config.Web.ListenAddress = *listenAddress
 	}
 	if serverTLSCertPathOverridden {
