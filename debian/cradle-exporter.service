@@ -6,7 +6,7 @@ After=syslog.target network.target remote-fs.target nss-lookup.target
 Type=forking
 PIDFile=/run/cradle_exporter.pid
 ExecStartPre=/usr/bin/cradle_exporter -t
-ExecStart=/usr/bin/cradle_exporter
+ExecStart=/usr/bin/cradle_exporter '--pid-file=/run/cradle_exporter.pid'
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 PrivateTmp=true
