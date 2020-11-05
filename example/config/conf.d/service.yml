@@ -1,8 +1,6 @@
 ---
 service:
-  path: 'go'
-  args:
-    - 'run'
-    - './test/servers/dying/main.go'
+  path: 'test/servers/dying-linux-x86_64'
+  args: []
   endpoints:
     - 'http://localhost:9999/metrics'

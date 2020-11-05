@@ -81,6 +81,6 @@ func (r *Runner) Run() error {
 
 func (r *Runner) Shutdown() {
 	r.halted.Store(true)
-	r.cron.Stop()
 	r.cancel()
+	r.cron.Stop()
 }
